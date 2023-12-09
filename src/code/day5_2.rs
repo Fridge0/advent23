@@ -10,15 +10,6 @@ pub fn solve(input: String) -> usize {
         let keys = keys.iter().filter_map(|str| parse_key(str)).collect_vec();
         maps.push(Map::from_keys(keys));
     }
-    // let (seed_soil, soil_fer, fer_water, water_light, light_temp, temp_humid, humid_loc) = (
-    //     maps[0].clone(),
-    //     maps[1].clone(),
-    //     maps[2].clone(),
-    //     maps[3].clone(),
-    //     maps[4].clone(),
-    //     maps[5].clone(),
-    //     maps[6].clone(),
-    // );
     if let [seed_soil, soil_fer, fer_water, water_light, light_temp, temp_humid, humid_loc] =
         &maps[0..7]
     {
@@ -35,8 +26,11 @@ pub fn solve(input: String) -> usize {
         panic!();
     }
 }
-
-#[derive(Clone)]
+#[allow(dead_code)]
+pub fn test() {
+    test_range();
+}
+#[derive(Clone, Debug)]
 struct Map {
     keys: Vec<Key>,
 }
@@ -54,7 +48,7 @@ struct Range {
     over: usize,
 }
 impl Range {
-    pub fn from(sl: &[i32]) -> Self {
+    pub fn from(sl: &[i64]) -> Self {
         Self {
             start: sl[0] as usize,
             over: (sl[0] + sl[1]) as usize,
@@ -63,25 +57,14 @@ impl Range {
     pub fn new(start: usize, over: usize) -> Self {
         Self { start, over }
     }
+    pub fn extract_src(key: Key) -> Self {
+        Self::new(key.src, key.src + key.len)
+    }
     fn overlaps(&self, other: &Range) -> bool {
         if self.start >= other.over || self.over <= other.start {
             return false;
         }
         true
-    }
-    fn and(&self, other: &Range) -> Range {
-        Range {
-            start: if self.start > other.start {
-                self.start
-            } else {
-                other.start
-            },
-            over: if self.over < other.over {
-                self.over
-            } else {
-                other.over
-            },
-        }
     }
     fn and_not(&self, other: Range) -> (Option<Range>, Option<Range>) {
         let mut count = 0;
@@ -136,18 +119,18 @@ impl Range {
             count += 1;
         }
         if count == 0 {
-            // ( [ ] ) | [] == self
+            // ( [ ] ) | [] == self : pattern A
             return (Some(*self), vec![]);
         }
         if count == 1 {
             if self.start < other.start {
-                // [  (  ]  ) [] = self
+                // [  (  ]  ) [] = self : pattern B
                 return (
                     Some(Range::new(other.start, self.over)),
                     vec![Range::new(self.start, other.start)],
                 );
             } else {
-                // ( [ ) ] | [] = self
+                // ( [ ) ] | [] = self : pattern C
                 return (
                     Some(Range::new(self.start, other.over)),
                     vec![Range::new(other.over, self.over)],
@@ -155,51 +138,117 @@ impl Range {
             }
         }
         // count == 2
-        // ( [ ] ) | self = []
+        // ( [ ] ) | self = [] : pattern D
         return (
-            Some(Range::new(self.start, self.over)),
+            Some(Range::new(other.start, other.over)),
             vec![
-                Range::new(other.start, self.start),
-                Range::new(self.over, other.over),
+                Range::new(self.start, other.start),
+                Range::new(other.over, self.over),
             ],
         );
     }
+    fn concat(&self, other: Range) -> Self {
+        Self {
+            start: std::cmp::min(self.start, other.start),
+            over: std::cmp::max(self.over, other.over),
+        }
+    }
+    fn shift_by(self, shift_len: i64) -> Self {
+        if self.start as i64 + shift_len < 0 {
+            panic!("overrun");
+        }
+        let start = self.start as i64 + shift_len;
+        let over = self.over as i64 + shift_len;
+        Self::new(start as usize, over as usize)
+    }
 }
+#[allow(dead_code)]
+fn test_range() {
+    let one_five = Range::new(1, 5);
+    let zero_six = Range::new(0, 6);
+    let two_eight = Range::new(2, 8);
+    println!("{:?}", one_five.subtract(zero_six)); // should get 1..5 and nothing remain (pattern A)
+    println!("{:?}", zero_six.subtract(two_eight)); // should get 2..6 and remain 0..2 (pattern B)
+    println!("{:?}", two_eight.subtract(zero_six)); // should get 2..6 and remain 6..8 (pattern C)
+    println!("{:?}", zero_six.subtract(one_five)); // should get 1..5 and 0..1 and 5..6 as remaining (pattern D)
+}
+#[derive(Debug)]
 struct Ranges(Vec<Range>);
 impl Ranges {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self(Vec::new())
     }
-    pub fn push(&mut self, r: Range) {
+    fn push(&mut self, r: Range) {
         self.0.push(r);
     }
     fn iter(&self) -> std::slice::Iter<Range> {
         self.0.iter()
     }
-    pub fn from(str: &str) -> Self {
+    fn from(str: &str) -> Self {
         let mut new = Self::new();
         let sets = str
             .split(" ")
             .into_iter()
-            .filter_map(|x| x.parse::<i32>().ok())
-            .collect::<Vec<i32>>();
+            .filter_map(|x| x.parse::<i64>().ok())
+            .collect::<Vec<i64>>();
         for slice in sets.chunks_exact(2) {
             new.push(Range::from(slice));
         }
         new
     }
-    pub fn apply(mut self, map: &Map) -> Self {
+    fn apply(self, map: &Map) -> Self {
+        self.get_min();
+        let mut new = Vec::new();
         for range in self.iter() {
-            for entry in map.iter() {
-                if range.overlaps(&entry.src_range()) {
-                    // split range and move some
+            let mut corresponging_key_exists = false;
+            let mut rem_ranges = vec![*range];
+            for &key in map.iter() {
+                let shift_len = key.dest as i64 - key.src as i64;
+                if let Some(Some(index, Some((Some(overlap), remaining)))) = rem_ranges
+                    .iter()
+                    .map(|range| range.subtract(Range::extract_src(key)))
+                    .enumerate()
+                    .find(|(_, (s, _))| s.is_some())
+                {
+                    new.push(overlap.shift_by(shift_len));
+                    corresponging_key_exists = true;
+                    rem_ranges.remove(index)
+                }
+                if some_exist {
+                    rem_ranges.remove(index_hoarder);
+                    rem_ranges.extend(remaining_hoarder);
+                }
+            }
+            if !corresponging_key_exists {
+                new.push(*range);
+            }
+        }
+        Self(new).simplify()
+    }
+    fn get_min(&self) -> usize {
+        let min = self.0.iter().map(|range| range.start).min().unwrap();
+        println!("current min: {}", min);
+        min
+    }
+    fn simplify(self) -> Self {
+        if self.0.len() == 0 {
+            return self;
+        }
+        let mut new = Vec::new();
+        for &range in self.iter() {
+            if new.len() == 0 {
+                new.push(range);
+            } else {
+                let last = new.pop().unwrap();
+                if last.overlaps(&range) {
+                    new.push(last.concat(range));
+                } else {
+                    new.push(last);
+                    new.push(range);
                 }
             }
         }
-        self
-    }
-    pub fn get_min(&self) -> usize {
-        todo!()
+        Self(new)
     }
 }
 
@@ -211,7 +260,7 @@ fn parse_key(str: &str) -> Option<Key> {
         len: atoms[2].parse().ok()?,
     })
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Key {
     dest: usize,
     src: usize,
@@ -261,12 +310,4 @@ fn larger(a: usize, b: usize) -> usize {
     } else {
         b
     }
-}
-pub fn test() {
-    let one_five = Range::new(1, 6);
-    let zero_six = Range::new(0, 7);
-    let two_eight = Range::new(2, 8);
-    println!("{:?}", zero_six.subtract(two_eight)); // should get 2..7 and remain 0..2
-    println!("{:?}", zero_six.subtract(one_five)); // should get 1..6 and 6..7 as remaining
-    println!("{:?}", one_five.subtract(zero_six)); // should get 0..6 and nothing remain
 }
