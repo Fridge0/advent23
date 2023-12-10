@@ -4,7 +4,7 @@ mod lib;
 
 fn main() {
     use code::*;
-    lib::log(day5_2::solve, "day5-sample.txt");
-    lib::log(day5_2::solve, "day5.txt");
+    lib::log(day7_2::solve, "day7-sample.txt");
+    lib::log(day7_2::solve, "day7.txt");
     // day5_2::test();
 }

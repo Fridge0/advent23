@@ -14,19 +14,47 @@ pub fn solve(input: String) -> usize {
     if let [seed_soil, soil_fer, fer_water, water_light, light_temp, temp_humid, humid_loc] =
         &maps[0..7]
     {
-        let locations = seeds
-            .apply(seed_soil)
-            .apply(soil_fer)
-            .apply(fer_water)
-            .apply(water_light)
-            .apply(light_temp)
-            .apply(temp_humid)
-            .apply(humid_loc);
-        locations.get_min()
+        let track_back = |dest: i32| -> Option<i32> {
+            Some(
+                dest.reverse(seed_soil)?
+                    .reverse(soil_fer)?
+                    .reverse(fer_water)?
+                    .reverse(water_light)?
+                    .reverse(light_temp)?
+                    .reverse(temp_humid)?
+                    .reverse(humid_loc)?,
+            )
+        };
+        for dest in 0..100 {
+            if let Some(_) = track_back(dest) {
+                return dest as usize;
+            }
+        }
+        panic!();
     } else {
         panic!();
     }
 }
+
+trait Reverse {
+    fn reverse(&self, map: &Map) -> Option<i32>;
+}
+impl Reverse for i32 {
+    fn reverse(&self, map: &Map) -> Option<Self> {
+        let possible_corr_keys = map
+            .keys
+            .iter()
+            .map(|key| self - key.diff() as i32)
+            .collect_vec();
+        for &i in possible_corr_keys.iter() {
+            if map.apply(i as usize) as i32 == *self {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+}
+
 #[allow(dead_code)]
 pub fn test() {
     test_range();
@@ -39,8 +67,16 @@ impl Map {
     fn from_keys(keys: Vec<Key>) -> Map {
         Self { keys }
     }
-    fn iter(&self) -> std::slice::Iter<Key> {
-        self.keys.iter()
+    fn apply(&self, i: usize) -> usize {
+        let target_key = self
+            .keys
+            .iter()
+            .find(|key| key.src <= i && i < key.src + key.len);
+        if let Some(target_key) = target_key {
+            return target_key.dest + i - target_key.src;
+        } else {
+            return i;
+        }
     }
 }
 #[derive(Debug, Clone, Copy)]
@@ -304,11 +340,4 @@ fn into_seeds(str: &str) -> Vec<usize> {
     str.split(" ")
         .filter_map(|item| item.parse().ok())
         .collect_vec()
-}
-fn larger(a: usize, b: usize) -> usize {
-    if a > b {
-        a
-    } else {
-        b
-    }
 }

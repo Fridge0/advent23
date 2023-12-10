@@ -1,0 +1,87 @@
+use itertools::Itertools;
+
+pub fn solve(str: String) -> i64 {
+    let entries = str.lines().map(|line| parse_line(line)).collect_vec();
+    let mut entries = entries
+        .into_iter()
+        .map(|entry| score_entry(&entry))
+        .collect_vec();
+    entries.sort_by(|a, b| a.score.cmp(&b.score));
+    let sorted = entries
+        .iter()
+        .enumerate()
+        .map(|(rank, any)| (rank as i64 + 1, any))
+        .inspect(|sth| println!("{:?}", sth))
+        .map(|(rank, scored_entry)| (rank) * scored_entry.points);
+    sorted.sum()
+}
+fn score_entry(entry: &Entry) -> ScoredEntry {
+    let mut ratio = 1;
+    let mut score: usize = 0;
+    for char in entry.hands.chars().rev() {
+        score += match_char(char) * ratio;
+        ratio *= 100;
+    }
+    score += determine_type(&entry.hands) * ratio;
+    ScoredEntry {
+        score,
+        points: entry.points,
+        hands: entry.hands.clone(),
+    }
+}
+fn determine_type(five_letter: &str) -> usize {
+    let mut bucket = [0; 13];
+    for char in five_letter.chars() {
+        bucket[match_char(char) - 2] += 1;
+    }
+    let entry = bucket.into_iter().filter(|x| *x > 0).collect_vec();
+    let &max = entry.iter().max().unwrap();
+    if max == 5 {
+        return 6; // Five of a kind
+    } else if max == 4 {
+        return 5; // Four of a kind
+    } else if max == 3 {
+        if entry.len() == 2 {
+            return 4; // Full house
+        } else {
+            return 3; // Three of a kind
+        }
+    } else if max == 2 {
+        if entry.len() == 3 {
+            return 2; // Two pairs
+        } else {
+            return 1; // One pair
+        }
+    }
+    return 0; // High card (bad)
+}
+fn match_char(char: char) -> usize {
+    if let Some(num) = char.to_string().parse::<usize>().ok() {
+        return num;
+    } else {
+        match char {
+            'T' => 10,
+            'J' => 11,
+            'Q' => 12,
+            'K' => 13,
+            'A' => 14,
+            _ => panic!("invalid char"),
+        }
+    }
+}
+struct Entry {
+    hands: String,
+    points: i64,
+}
+#[derive(Debug)]
+struct ScoredEntry {
+    points: i64,
+    score: usize,
+    hands: String,
+}
+fn parse_line(line: &str) -> Entry {
+    let mut entry = line.split(" ");
+    let hands = entry.next().unwrap().to_string();
+    let points = entry.next().unwrap().parse().unwrap();
+    return Entry { hands, points };
+}
