@@ -4,8 +4,8 @@ mod code;
 
 fn main() {
     use code::*;
-    log(day8_2::solve, "day8-sample-2.txt");
-    log(day8_2::solve, "day8.txt");
+    log(day9_2::solve, "day9-sample.txt");
+    log(day9_2::solve, "day9.txt");
     // day5_2::test();
 }
 
