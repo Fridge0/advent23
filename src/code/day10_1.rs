@@ -1,9 +1,6 @@
-use core::panic;
-use std::thread::current;
-
 use itertools::Itertools;
 
-use crate::lib::{self, field::*, log};
+use crate::lib::{field::*, log};
 pub fn solve(input: String) -> i32 {
     let input_vec = input
         .lines()
@@ -21,12 +18,10 @@ pub fn solve(input: String) -> i32 {
         })
         .unwrap()
         .to_owned();
-    log(first);
-    let mut current_pos = start.goto(&first);
+    let mut current_pos = start;
     let mut current_dir = first;
     for i in 0.. {
         current_pos = current_pos.goto(&current_dir); // move pos
-        println!("next pos: {:?}", current_pos);
         current_dir = field // update dir
             .get(&current_pos)
             .unwrap_or(Item::Nil)
@@ -35,10 +30,6 @@ pub fn solve(input: String) -> i32 {
             .find(|dir| **dir != current_dir.rev())
             .unwrap()
             .clone();
-        println!(
-            "{current_pos:?}, {:?}, {current_dir:?}",
-            field.get(&current_pos)
-        );
         if field.get(&current_pos).unwrap() == Item::Start {
             return (1 + i) / 2;
         }
@@ -127,6 +118,6 @@ fn parse_item(char: char) -> Item {
         '7' => DL,
         'F' => DR,
         '.' => Nil,
-        _ => panic!(),
+        c => panic!("ParseError: found {c}."),
     }
 }

@@ -17,4 +17,5 @@
 // pub mod day8_2;
 // pub mod day9_1;
 // pub mod day9_2;
-pub mod day10_1;
+// pub mod day10_1;
+pub mod day10_2;

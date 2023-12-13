@@ -5,7 +5,7 @@ pub mod field {
     use itertools::Itertools;
 
     pub struct Vector(i32, i32);
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct Pos(pub usize, pub usize);
     pub struct Field<T> {
         field: Vec<Vec<T>>,
@@ -37,6 +37,15 @@ pub mod field {
             }
             return Some(self.field[pos.0][pos.1].clone());
         }
+        pub fn set(&mut self, pos: &Pos, value: T) {
+            if pos.0 >= self.field.len() {
+                return;
+            }
+            if pos.1 >= self.field[pos.0].len() {
+                return;
+            }
+            self.field[pos.0][pos.1] = value;
+        }
         pub fn concat(&self) -> Vec<T> {
             return self.field.concat();
         }
@@ -52,6 +61,20 @@ pub mod field {
                 }
             }
             return None;
+        }
+        pub fn find_all_position<F>(&self, func: F) -> Vec<Pos>
+        where
+            F: Fn(&T) -> bool,
+        {
+            let mut result = Vec::new();
+            for (x, ln) in self.field.iter().enumerate() {
+                for (y, item) in ln.iter().enumerate() {
+                    if func(item) {
+                        result.push(Pos(x, y));
+                    }
+                }
+            }
+            return result;
         }
         pub fn map<U, F>(&self, func: F) -> Field<U>
         where
@@ -70,14 +93,14 @@ pub mod field {
     }
     impl<T> std::fmt::Debug for Field<T>
     where
-        T: ToString,
+        T: std::fmt::Display,
     {
         fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
             for ln in self.field.iter() {
                 write!(
                     fmt,
-                    "{:?}\n",
-                    ln.iter().map(|elem| elem.to_string()).join("")
+                    "{}\n",
+                    ln.iter().map(|elem| format!("{}", elem)).join("")
                 )?;
             }
             return Ok(());
