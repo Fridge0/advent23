@@ -2,8 +2,6 @@ use itertools::Itertools;
 
 use crate::lib::field::*;
 pub fn solve(input: String) -> i32 {
-    let mut outside_count = 0;
-    let mut inside_count = 0;
     let input_vec = input
         .lines()
         .map(|line| line.chars().collect_vec())
@@ -11,55 +9,56 @@ pub fn solve(input: String) -> i32 {
     let field = Field::from(input_vec.clone()).map(parse_item);
     let mut path = Field::from(input_vec).map(|_| false);
     let mut path_stack = Vec::new();
-    let start = field.find_position(|item| *item == Item::Start).unwrap();
-    let first = Direction::as_vec()
+    let start = field
+        .find_position(|item| *item == Item::Start)
+        .expect("letter S was not found");
+    let first_dir = Direction::as_vec()
         .iter()
         .find(|dir| {
             field
                 .get(&start.goto(dir))
                 .unwrap_or(Item::Nil)
-                .is_pointing(&dir.rev())
+                .is_pointing(&dir.rev()) // assure connection to S
         })
-        .expect("S not found")
+        .expect("paths around S is invalid")
         .to_owned();
     let mut current_pos = start;
-    let mut current_dir = first;
+    let mut current_dir = first_dir;
+    let mut field = field;
     loop {
         // find path
         path.set(&current_pos, true);
         path_stack.push((current_pos.clone(), current_dir.clone()));
         current_pos = current_pos.goto(&current_dir); // move
+        path_stack.push((current_pos.clone(), current_dir.clone()));
+        // duplicate push is intentional. don't remove until u understand why this is needed (try remove either of them and run sample 2)
+        // hint: at corners, how should you mark the front ("o" or "i")? how'd you know?
         current_dir = field
             .get(&current_pos)
             .expect("current pos does not exist(wtf)")
             .pointing_dirs()
             .iter()
             .find(|dir| **dir != current_dir.rev())
-            .unwrap()
+            .expect("the path is probably disconnected")
             .clone(); // update dir
-        path.set(&current_pos, true);
+                      // handle_head_ignorance_issue(&mut field, current_pos.clone(), prev_dir, current_dir);
         if field.get(&current_pos).unwrap() == Item::Start {
+            path.set(&current_pos, true);
             break;
         }
     }
-    let mut field = field;
+    let path = path;
+    let mut count = 0;
     loop {
         // fill them with i/o
         if let Some((current_pos, current_dir)) = path_stack.pop() {
             let right = current_pos.goto(&current_dir.rev().rot());
             if path.get(&right) == Some(false) {
                 field.set(&right, Item::Inside);
-                path.set(&right, true);
-                inside_count += 1;
             }
             let left = current_pos.goto(&current_dir.rot());
             if path.get(&left) == Some(false) {
                 field.set(&left, Item::Outside);
-                path.set(&left, true);
-                outside_count += 1;
-            }
-            if field.get(&current_pos).unwrap() == Item::Start {
-                break;
             }
         } else {
             break;
@@ -69,8 +68,11 @@ pub fn solve(input: String) -> i32 {
     loop_spread(&mut field, &path, Item::Inside);
     let outside_count = field.find_all_position(|item| *item == Item::Outside).len();
     let inside_count = field.find_all_position(|item| *item == Item::Inside).len();
-    // println!("{:?}", field);
+    let pathsize = path.find_all_position(|b| *b).len();
     println!("o: {}, i: {}", outside_count, inside_count);
+    println!("{:?}", field);
+    println!("path count: {pathsize}");
+    assert_eq!(pathsize + outside_count + inside_count, field.len());
     return 0;
 }
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -178,6 +180,27 @@ impl Direction {
             Right => Down,
             Down => Left,
             Left => Up,
+        }
+    }
+    fn angle(&self, other: &Direction) -> Direction {
+        use Direction::*;
+        fn dir_to_angle(dir: &Direction) -> i32 {
+            match dir {
+                Up => 0,
+                Right => 1,
+                Down => 2,
+                Left => 3,
+            }
+        }
+        let self_angle = dir_to_angle(self);
+        let other_angle = dir_to_angle(other);
+        let result = (other_angle - self_angle + 4) % 4;
+        match result {
+            0 => Up,
+            1 => Right,
+            2 => Down,
+            3 => Left,
+            _ => panic!("%4 operator didn't work correctly i guess"),
         }
     }
 }

@@ -9,17 +9,55 @@ pub mod field {
     pub struct Pos(pub usize, pub usize);
     pub struct Field<T> {
         field: Vec<Vec<T>>,
+        pub width: usize,
+        pub height: usize,
     }
     impl<T: Clone> Field<T> {
         pub fn new() -> Self {
             let new: Vec<Vec<T>> = Vec::new();
-            return Self { field: new };
+            return Self {
+                field: new,
+                height: 0,
+                width: 0,
+            };
         }
         pub fn from(v: Vec<Vec<T>>) -> Self {
-            return Self { field: v };
+            return Self {
+                height: v.len(),
+                width: v[0].len(),
+                field: v,
+            };
+        }
+        pub fn len(&self) -> usize {
+            return self.field.iter().map(|vec| vec.len()).sum();
+        }
+        pub fn rows(&self) -> Vec<Vec<T>> {
+            return self.field.to_owned();
+        }
+        pub fn cols(&self) -> Vec<Vec<T>> {
+            let mut cols = vec![Vec::new(); self.height];
+            for row in self.field.iter() {
+                for (idx, item) in row.iter().enumerate() {
+                    cols[idx].push(item.to_owned());
+                }
+            }
+            cols
         }
         pub fn pushln(&mut self, line: Vec<T>) {
             self.field.push(line);
+        }
+        pub fn pushcol(&mut self, col: Vec<T>) {
+            let mut col = col.iter();
+            for ln in self.field.iter_mut() {
+                ln.push(
+                    col.next()
+                        .expect("not enough len of input | happened in push col")
+                        .to_owned(),
+                );
+            }
+        }
+        pub fn iter_vec(&self) -> std::slice::Iter<Vec<T>> {
+            self.field.iter().to_owned()
         }
         pub fn with_size(x: usize, y: usize, default: T) -> Self {
             let mut new = Self::new();
