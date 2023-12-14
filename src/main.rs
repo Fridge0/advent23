@@ -6,9 +6,7 @@ mod lib;
 #[allow(unused_imports)]
 fn main() {
     use code::*;
-    lib::run(day10_2::solve, "day10-sample.txt");
-    lib::run(day10_2::solve, "day10-sample-2.txt");
-    lib::run(day10_2::solve, "day10-sample-3.txt");
-    lib::run(day10_2::solve, "day10.txt");
+    lib::run(day11_1::solve, "day11-sample.txt");
+    lib::run(day11_1::solve, "day11.txt");
     // test();
 }
