@@ -4,10 +4,10 @@ mod code;
 mod utils;
 
 #[allow(unused_imports)]
-use code::day13_1::*;
+use code::day14_2::*;
 
 fn main() {
-    utils::run(solve, "day12.txt");
+    utils::run(solve, "day14.txt");
     // test();
 }
 fn _main() {

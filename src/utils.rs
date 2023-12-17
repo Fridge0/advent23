@@ -1,12 +1,13 @@
 #[allow(dead_code)]
 pub mod field {
-    use std::fmt::Formatter;
+    use std::{clone, fmt::Formatter};
 
     use itertools::Itertools;
 
     pub struct Vector(i32, i32);
     #[derive(Clone, Debug, PartialEq)]
     pub struct Pos(pub usize, pub usize);
+    #[derive(Clone, PartialEq)]
     pub struct Field<T> {
         field: Vec<Vec<T>>,
     }
